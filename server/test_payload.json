@@ -1,0 +1,25 @@
+{
+  "stories": [
+    {
+      "sprint": 25,
+      "taskCategory": "DEV",
+      "taskType": "GOVERNANCE_INSIGHT",
+      "taskAction": "Enable Toggle Between Spider Chart and Tabular View for Security Compliance Metrics",
+      "description": "As a Governance Insight user, I want to switch views.",
+      "assignee": "chirags"
+    }
+  ],
+  "sprints": [
+    {
+      "Sprint_Index": 25,
+      "Sprint_ID": "213732",
+      "EpicName": "DAG-1887",
+      "Start_Month": 3,
+      "Start_Day": 24,
+      "Start_Year": 2026,
+      "End_Month": 4,
+      "End_Day": 6,
+      "End_Year": 2026
+    }
+  ]
+}
