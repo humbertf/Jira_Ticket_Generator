@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
-import { api, buildDescription, buildSummary } from "@/lib/api"
+import { api, buildSummary } from "@/lib/api"
 import type { Story, Sprint } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -49,7 +49,6 @@ export default function ExportPage() {
       ...s,
       // export service uses `sprint` field to look up sprint records
       sprint: s.sprintIndex,
-      description: s.jiraDescription || buildDescription(s),
     }))
     return { stories: normalizedStories, sprints }
   }

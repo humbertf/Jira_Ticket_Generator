@@ -27,6 +27,62 @@ function twoDigitSprint(n){
   return pad2(num)
 }
 
+function buildFullDescription(story){
+  const lines = []
+
+  // ── User Story ────────────────────────────────────────────────────────────
+  if(story.persona || story.goal || story.benefit){
+    lines.push('User Story')
+    lines.push('')
+    const parts = [story.persona, story.goal, story.benefit].filter(Boolean)
+    lines.push(parts.join(', ') + '.')
+  }
+
+  // ── Description ───────────────────────────────────────────────────────────
+  const desc = (story.jiraDescription || '').trim()
+  if(desc){
+    lines.push('')
+    lines.push('Description')
+    lines.push('')
+    lines.push(desc)
+  }
+
+  // ── Acceptance Criteria ───────────────────────────────────────────────────
+  lines.push('')
+  lines.push('Acceptance Criteria')
+  lines.push('')
+  const rawAC = (story.acceptanceCriteria || '').trim()
+  if(rawAC){
+    rawAC.split('\n').map(c => c.trim()).filter(Boolean).forEach(c => {
+      lines.push(c.startsWith('-') ? c : `- ${c}`)
+    })
+  } else {
+    // Auto-generate minimal AC from story context
+    const action = story.taskAction || 'the task'
+    lines.push(`- The implementation of "${action}" meets the defined requirements.`)
+    lines.push('- The change has been tested and verified to work as expected.')
+    lines.push('- No existing functionality is negatively impacted.')
+  }
+
+  // ── Additional Details ────────────────────────────────────────────────────
+  const details = []
+  if(story.taskCategory) details.push(`- Task Category: ${story.taskCategory}`)
+  if(story.taskType)     details.push(`- Task Type: ${story.taskType}`)
+  if(story.taskAction)   details.push(`- Task Action: ${story.taskAction}`)
+  const idx = story.sprintIndex ?? story.sprint
+  if(idx != null)        details.push(`- Sprint: ${idx}`)
+  if(story.assignee)     details.push(`- Assignee: ${story.assignee}`)
+
+  if(details.length > 0){
+    lines.push('')
+    lines.push('Additional Details')
+    lines.push('')
+    details.forEach(d => lines.push(d))
+  }
+
+  return lines.join('\n')
+}
+
 function generateSummary(story){
   const sprintNum = twoDigitSprint(story.sprint)
   const taskCat = (story.taskCategory || '')
@@ -96,7 +152,7 @@ export function generateCsv({stories, sprints}){
     const sprintRec = sprintMap.get(sprintIdx)
     const summary = generateSummary(st)
     const headline = summary
-    const description = st.description ?? st.jiraDescription ?? ''
+    const description = buildFullDescription(st)
     const epicName = sprintRec ? (sprintRec.EpicName ?? sprintRec.Epic_Name ?? sprintRec.epicName ?? '') : ''
     const issueType = 'Story'
     const sprintId = sprintRec ? (sprintRec.SprintID ?? sprintRec.Sprint_ID ?? sprintRec.sprintId ?? sprintRec.Sprint_Id ?? '') : ''
