@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Sprint {
+  id          Int      @id @default(autoincrement())
+  sprintIndex Int      @unique
+  sprintId    Int      @unique
+  epicName    String
+  startMonth  Int?
+  startDay    Int?
+  startYear   Int?
+  endMonth    Int?
+  endDay      Int?
+  endYear     Int?
+  issueType   String   @default("Story")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  stories     Story[]
+}
+
+model Persona {
+  id        Int      @id @default(autoincrement())
+  label     String   @unique
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Prefix {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  description String?
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Assignee {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  displayName   String?
+  email         String?
+  jiraAccountId String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Component {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Story {
+  id                 Int      @id @default(autoincrement())
+  sprintIndex        Int
+  taskCategory       String
+  taskType           String?
+  taskAction         String
+  persona            String?
+  goal               String?
+  benefit            String?
+  acceptanceCriteria String?
+  jiraDescription    String?
+  assignee           String?
+  summary            String?
+  headline           String?
+  isSelected         Boolean  @default(false)
+  isExported         Boolean  @default(false)
+  useStructuredMode  Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  sprint             Sprint   @relation(fields: [sprintIndex], references: [sprintIndex])
+}

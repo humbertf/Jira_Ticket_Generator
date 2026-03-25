@@ -30,3 +30,7 @@ Thumbs.db
 
 # Vite
 client/.vite/
+
+/generated/
+*.db
+*.db-journal
