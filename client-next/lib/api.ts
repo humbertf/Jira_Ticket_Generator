@@ -64,7 +64,7 @@ export const api = {
 
   export: {
     generate: (payload: { stories: Partial<Story>[]; sprints: Sprint[] }) =>
-      req<{ csv: string; config: string; csvFilename: string; cfgFilename: string; rowCount: number }>(
+      req<{ csv: string; config: string; pptx: string; csvFilename: string; cfgFilename: string; pptxFilename: string; rowCount: number }>(
         "/export",
         { method: "POST", body: JSON.stringify(payload) }
       ),

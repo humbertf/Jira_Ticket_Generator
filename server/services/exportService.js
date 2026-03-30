@@ -1,3 +1,5 @@
+import PptxGenJS from 'pptxgenjs'
+
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function pad2(n){ return n.toString().padStart(2,'0') }
@@ -183,4 +185,200 @@ export function generateCsv({stories, sprints}){
 export function generateConfigFile(){
   const cfg = buildConfig()
   return JSON.stringify(cfg, null, 2)
+}
+
+export async function generatePptx({ stories, sprints }){
+  const pptx = new PptxGenJS()
+  pptx.layout = 'LAYOUT_WIDE'  // 13.33" x 7.5"
+
+  const RED        = 'EB1000'
+  const BLACK      = '1E1E1E'
+  const WHITE      = 'FFFFFF'
+  const GRAY       = '767676'
+  const LIGHT_GRAY = 'F4F4F4'
+  const W          = 13.33
+  const H          = 7.5
+  const STRIPE_W   = 0.18
+  const ML         = 0.45  // margin left (after stripe)
+  const MR         = 0.4   // margin right
+  const CX         = STRIPE_W + ML
+  const CW         = W - CX - MR
+
+  // Sprint lookup map
+  const sprintMap = new Map()
+  for(const s of sprints){
+    const idx = s.SprintIndex ?? s.Sprint_Index ?? s.sprintIndex ?? s.sprint
+    if(idx !== undefined) sprintMap.set(Number(idx), s)
+  }
+
+  // ── Cover slide ────────────────────────────────────────────────────────────
+  const cover = pptx.addSlide()
+  cover.background = { color: RED }
+
+  cover.addText('Adobe', {
+    x: 0.55, y: 0.4, w: 3, h: 0.7,
+    fontSize: 32, bold: true, color: WHITE, fontFace: 'Calibri',
+  })
+
+  cover.addText('Jira User Stories', {
+    x: 0.55, y: 1.9, w: W - 1.1, h: 1.3,
+    fontSize: 52, bold: true, color: WHITE, fontFace: 'Calibri',
+  })
+
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  cover.addText(`${stories.length} User ${stories.length === 1 ? 'Story' : 'Stories'}  ·  ${today}`, {
+    x: 0.55, y: 3.35, w: W - 1.1, h: 0.5,
+    fontSize: 18, color: WHITE, fontFace: 'Calibri',
+  })
+
+  // White bottom bar
+  cover.addShape('rect', {
+    x: 0, y: H - 0.12, w: W, h: 0.12,
+    fill: { color: WHITE }, line: { type: 'none' },
+  })
+
+  // ── One slide per story ────────────────────────────────────────────────────
+  for(const st of stories){
+    const sprintIdx = Number(st.sprint ?? st.sprintIndex ?? 0)
+    const sprintRec = sprintMap.get(sprintIdx)
+
+    const slide = pptx.addSlide()
+    slide.background = { color: WHITE }
+
+    // Left red stripe
+    slide.addShape('rect', {
+      x: 0, y: 0, w: STRIPE_W, h: H,
+      fill: { color: RED }, line: { type: 'none' },
+    })
+
+    // ── Tag row ──────────────────────────────────────────────────────────────
+    const sprintLabel = `SP${String(sprintIdx).padStart(2, '0')}`
+    const catLabel    = (st.taskCategory || '').toUpperCase()
+    const typeLabel   = (st.taskType     || '').toUpperCase()
+    const TAG_Y = 0.22
+    const TAG_H = 0.28
+    const FS    = 9
+    let tx = CX
+
+    // Sprint pill — red
+    const spW = 0.58
+    slide.addShape('rect', { x: tx, y: TAG_Y, w: spW, h: TAG_H, fill: { color: RED }, line: { type: 'none' } })
+    slide.addText(sprintLabel, { x: tx, y: TAG_Y, w: spW, h: TAG_H, fontSize: FS, bold: true, color: WHITE, fontFace: 'Calibri', align: 'center', valign: 'middle' })
+    tx += spW + 0.1
+
+    // Category pill — black
+    if(catLabel){
+      const catW = Math.max(0.55, catLabel.length * 0.095 + 0.22)
+      slide.addShape('rect', { x: tx, y: TAG_Y, w: catW, h: TAG_H, fill: { color: BLACK }, line: { type: 'none' } })
+      slide.addText(catLabel, { x: tx, y: TAG_Y, w: catW, h: TAG_H, fontSize: FS, bold: true, color: WHITE, fontFace: 'Calibri', align: 'center', valign: 'middle' })
+      tx += catW + 0.1
+    }
+
+    // Type pill — light gray border
+    if(typeLabel){
+      const typeW = Math.max(0.6, typeLabel.length * 0.095 + 0.22)
+      slide.addShape('rect', { x: tx, y: TAG_Y, w: typeW, h: TAG_H, fill: { color: LIGHT_GRAY }, line: { color: 'CCCCCC', pt: 0.5 } })
+      slide.addText(typeLabel, { x: tx, y: TAG_Y, w: typeW, h: TAG_H, fontSize: FS, color: BLACK, fontFace: 'Calibri', align: 'center', valign: 'middle' })
+    }
+
+    // Summary (mono, small, gray)
+    const summaryText = st.summary || generateSummary(st)
+    slide.addText(summaryText, {
+      x: CX, y: 0.58, w: CW, h: 0.22,
+      fontSize: 8.5, color: GRAY, fontFace: 'Courier New',
+    })
+
+    // Main title: taskAction
+    slide.addText(st.taskAction || '(no action defined)', {
+      x: CX, y: 0.84, w: CW, h: 0.76,
+      fontSize: 22, bold: true, color: BLACK, fontFace: 'Calibri',
+      wrap: true, valign: 'top',
+    })
+
+    // Divider
+    slide.addShape('line', {
+      x: CX, y: 1.66, w: CW, h: 0,
+      line: { color: 'E0E0E0', pt: 0.75 },
+    })
+
+    // ── Content sections ─────────────────────────────────────────────────────
+    let curY = 1.78
+    const LABEL_FS = 8
+    const BODY_FS  = 10
+    const LABEL_H  = 0.2
+    const LINE_H   = 0.175
+    const SEC_GAP  = 0.14
+
+    function addSection(label, text){
+      if(!text || !text.trim()) return
+      slide.addText(label.toUpperCase(), {
+        x: CX, y: curY, w: CW, h: LABEL_H,
+        fontSize: LABEL_FS, bold: true, color: RED,
+        fontFace: 'Calibri', charSpacing: 0.5,
+      })
+      curY += LABEL_H
+
+      const bodyLines = text.trim().split('\n').filter(l => l.trim())
+      const estLines  = bodyLines.reduce((acc, l) => acc + Math.ceil(l.length / 95), 0)
+      const bodyH     = Math.max(LINE_H, estLines * LINE_H)
+
+      slide.addText(text.trim(), {
+        x: CX, y: curY, w: CW, h: bodyH,
+        fontSize: BODY_FS, color: BLACK, fontFace: 'Calibri',
+        wrap: true, valign: 'top',
+      })
+      curY += bodyH + SEC_GAP
+    }
+
+    // User Story
+    if(st.persona || st.goal || st.benefit){
+      const parts = [st.persona, st.goal, st.benefit].filter(Boolean)
+      addSection('User Story', parts.join(', ') + '.')
+    }
+
+    // Description
+    if((st.jiraDescription || '').trim()){
+      addSection('Description', st.jiraDescription.trim())
+    }
+
+    // Acceptance Criteria
+    const rawAC = (st.acceptanceCriteria || '').trim()
+    let acText
+    if(rawAC){
+      acText = rawAC.split('\n').map(c => c.trim()).filter(Boolean)
+        .map(c => c.startsWith('-') || c.startsWith('•') ? c : `• ${c}`).join('\n')
+    } else {
+      const action = st.taskAction || 'the task'
+      acText = `• The implementation of "${action}" meets the defined requirements.\n• The change has been tested and verified to work as expected.\n• No existing functionality is negatively impacted.`
+    }
+    addSection('Acceptance Criteria', acText)
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    const FY = H - 0.32
+    slide.addShape('line', {
+      x: CX, y: FY - 0.06, w: CW, h: 0,
+      line: { color: 'E0E0E0', pt: 0.5 },
+    })
+
+    if(st.assignee){
+      slide.addText(`Assignee: ${st.assignee}`, {
+        x: CX, y: FY, w: CW / 2, h: 0.22,
+        fontSize: 8, color: GRAY, fontFace: 'Calibri',
+      })
+    }
+
+    if(sprintRec){
+      const sm = sprintRec.Start_Month, sd2 = sprintRec.Start_Day, sy = sprintRec.Start_Year
+      const em = sprintRec.End_Month,   ed2 = sprintRec.End_Day,   ey = sprintRec.End_Year
+      if(sm && sd2 && sy && em && ed2 && ey){
+        const dateRange = `${MONTH_SHORT[sm-1]} ${sd2}, ${sy} – ${MONTH_SHORT[em-1]} ${ed2}, ${ey}`
+        slide.addText(dateRange, {
+          x: CX + CW / 2, y: FY, w: CW / 2, h: 0.22,
+          fontSize: 8, color: GRAY, fontFace: 'Calibri', align: 'right',
+        })
+      }
+    }
+  }
+
+  return pptx.write({ outputType: 'base64' })
 }

@@ -7,10 +7,23 @@ import type { Story, Sprint } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { FileOutput, Download, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { FileOutput, Download, Loader2, CheckCircle2, AlertCircle, Presentation } from "lucide-react"
 
 function downloadFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function downloadBase64File(base64: string, filename: string, mimeType: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+  const blob = new Blob([bytes], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
@@ -25,7 +38,7 @@ export default function ExportPage() {
   const [stories, setStories] = useState<Story[]>([])
   const [sprints, setSprints] = useState<Sprint[]>([])
   const [loading, setLoading] = useState(true)
-  const [downloading, setDownloading] = useState<"csv" | "config" | null>(null)
+  const [downloading, setDownloading] = useState<"csv" | "config" | "pptx" | null>(null)
   const [markedExported, setMarkedExported] = useState(false)
 
   async function load() {
@@ -64,17 +77,19 @@ export default function ExportPage() {
     }
   }
 
-  async function handleDownload(type: "csv" | "config") {
+  async function handleDownload(type: "csv" | "config" | "pptx") {
     setDownloading(type)
     try {
       const result = await api.export.generate(buildPayload())
       if (type === "csv") {
         downloadFile(result.csv, result.csvFilename, "text/csv")
-      } else {
+      } else if (type === "config") {
         downloadFile(result.config, result.cfgFilename, "application/json")
+      } else {
+        downloadBase64File(result.pptx, result.pptxFilename, "application/vnd.openxmlformats-officedocument.presentationml.presentation")
       }
       if (!markedExported) await markAsExported()
-      toast.success(type === "csv" ? "CSV downloaded" : "Config file downloaded")
+      toast.success(type === "csv" ? "CSV downloaded" : type === "pptx" ? "PowerPoint downloaded" : "Config file downloaded")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed")
     } finally {
@@ -200,7 +215,7 @@ export default function ExportPage() {
             </Table>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <Button onClick={() => handleDownload("csv")} disabled={!!downloading}>
               {downloading === "csv" ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -208,6 +223,18 @@ export default function ExportPage() {
                 <Download className="mr-1.5 h-4 w-4" />
               )}
               Download CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleDownload("pptx")}
+              disabled={!!downloading}
+            >
+              {downloading === "pptx" ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Presentation className="mr-1.5 h-4 w-4" />
+              )}
+              Download PowerPoint
             </Button>
             <Button
               variant="outline"
